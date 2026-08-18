@@ -22,6 +22,23 @@ $conn->set_charset("utf8mb4");
 // FUNÇÕES AUXILIARES
 // ============================================================
 
+function getFotoPerfil($conn, $user_id) {
+    $sql = "SELECT foto_perfil FROM usuarios WHERE id = ?";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("i", $user_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $row = $result->fetch_assoc();
+    return $row['foto_perfil'] ?? '';
+}
+
+function verificarFotoPerfil($foto) {
+    if (!empty($foto) && file_exists($foto) && is_file($foto)) {
+        return $foto;
+    }
+    return 'default-avatar.png';
+}
+
 function listarPacientes($conn, $cuidador_id) {
     try {
         $sql = "SELECT * FROM pacientes WHERE cuidador_id = ? ORDER BY nome ASC";
@@ -106,13 +123,40 @@ function listarAnotacoes($conn, $cuidador_id) {
     }
 }
 
-function getFotoPerfil($conn, $user_id) {
-    $sql = "SELECT foto_perfil FROM usuarios WHERE id = ?";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("i", $user_id);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $row = $result->fetch_assoc();
-    return $row['foto_perfil'] ?? '';
+function salvarFotoPerfil($arquivo, $user_id, $conn) {
+    $erro = '';
+    $caminho_completo = '';
+    
+    if ($arquivo['error'] != 0) {
+        return ['erro' => 'Erro no upload do arquivo.', 'caminho' => ''];
+    }
+    
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $mime_type = finfo_file($finfo, $arquivo['tmp_name']);
+    finfo_close($finfo);
+    
+    $tipos_permitidos = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!in_array($mime_type, $tipos_permitidos)) {
+        return ['erro' => 'Formato de imagem não permitido. Use JPG, PNG, GIF ou WEBP.', 'caminho' => ''];
+    }
+    
+    if ($arquivo['size'] > 5 * 1024 * 1024) {
+        return ['erro' => 'A imagem deve ter no máximo 5MB.', 'caminho' => ''];
+    }
+    
+    $pasta_uploads = 'uploads/';
+    if (!file_exists($pasta_uploads)) {
+        mkdir($pasta_uploads, 0777, true);
+    }
+    
+    $extensao = strtolower(pathinfo($arquivo['name'], PATHINFO_EXTENSION));
+    $nome_arquivo = 'perfil_' . $user_id . '_' . bin2hex(random_bytes(8)) . '.' . $extensao;
+    $caminho_completo = $pasta_uploads . $nome_arquivo;
+    
+    if (!move_uploaded_file($arquivo['tmp_name'], $caminho_completo)) {
+        return ['erro' => 'Erro ao fazer upload da imagem.', 'caminho' => ''];
+    }
+    
+    return ['erro' => '', 'caminho' => $caminho_completo];
 }
 ?>
