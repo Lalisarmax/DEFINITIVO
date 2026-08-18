@@ -49,44 +49,6 @@ if ($user_tipo == 'idoso') {
     ];
 }
 
-// Função para salvar foto
-function salvarFotoPerfil($arquivo, $user_id, $conn) {
-    $erro = '';
-    $caminho_completo = '';
-    
-    if ($arquivo['error'] != 0) {
-        return ['erro' => 'Erro no upload do arquivo.', 'caminho' => ''];
-    }
-    
-    $finfo = finfo_open(FILEINFO_MIME_TYPE);
-    $mime_type = finfo_file($finfo, $arquivo['tmp_name']);
-    finfo_close($finfo);
-    
-    $tipos_permitidos = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    if (!in_array($mime_type, $tipos_permitidos)) {
-        return ['erro' => 'Formato de imagem não permitido. Use JPG, PNG, GIF ou WEBP.', 'caminho' => ''];
-    }
-    
-    if ($arquivo['size'] > 5 * 1024 * 1024) {
-        return ['erro' => 'A imagem deve ter no máximo 5MB.', 'caminho' => ''];
-    }
-    
-    $pasta_uploads = 'uploads/';
-    if (!file_exists($pasta_uploads)) {
-        mkdir($pasta_uploads, 0777, true);
-    }
-    
-    $extensao = strtolower(pathinfo($arquivo['name'], PATHINFO_EXTENSION));
-    $nome_arquivo = 'perfil_' . $user_id . '_' . bin2hex(random_bytes(8)) . '.' . $extensao;
-    $caminho_completo = $pasta_uploads . $nome_arquivo;
-    
-    if (!move_uploaded_file($arquivo['tmp_name'], $caminho_completo)) {
-        return ['erro' => 'Erro ao fazer upload da imagem.', 'caminho' => ''];
-    }
-    
-    return ['erro' => '', 'caminho' => $caminho_completo];
-}
-
 // Processar upload de foto
 if (isset($_FILES['foto_perfil']) && $_FILES['foto_perfil']['error'] == 0) {
     $resultado = salvarFotoPerfil($_FILES['foto_perfil'], $user_id, $conn);
@@ -251,13 +213,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && !isset($_POST['remover_foto']) && !i
             error_log('Erro ao atualizar perfil: ' . $stmt->error);
         }
     }
-}
-
-function getFotoPerfil($foto) {
-    if (!empty($foto) && file_exists($foto) && is_file($foto)) {
-        return $foto;
-    }
-    return 'default-avatar.png';
 }
 
 $foto_perfil_menu = $usuario['foto_perfil'] ?? '';
@@ -788,7 +743,7 @@ $foto_perfil_menu = $usuario['foto_perfil'] ?? '';
             <div class="profile-photo-section">
                 <div class="photo-container">
                     <?php 
-                    $foto_atual = getFotoPerfil($usuario['foto_perfil'] ?? '');
+                    $foto_atual = verificarFotoPerfil($usuario['foto_perfil'] ?? '');
                     ?>
                     <img src="<?php echo htmlspecialchars($foto_atual); ?>" alt="Foto de perfil" class="foto-perfil" id="previewFoto" />
                     <label for="uploadFoto" class="upload-overlay" title="Alterar foto">
