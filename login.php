@@ -4,13 +4,15 @@ ini_set('display_errors', 1);
 
 session_start();
 
-if (isset($_SESSION['user_id'])) {
+// Se já estiver logado, redirecionar corretamente
+if (isset($_SESSION['user_id']) && !empty($_SESSION['user_id'])) {
     if ($_SESSION['user_tipo'] == 'cuidador') {
         header('Location: painel-cuidador.php');
+        exit;
     } else {
         header('Location: paciente-visualizacao.php');
+        exit;
     }
-    exit;
 }
 
 include 'conexao.php';
@@ -33,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         if ($result->num_rows == 1) {
             $user = $result->fetch_assoc();
             
-            // Verificar senha (suporta MD5 e password_hash)
+            // Verificar senha
             $senha_valida = false;
             if (password_get_info($user['senha'])['algo']) {
                 $senha_valida = password_verify($senha, $user['senha']);
@@ -42,12 +44,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
             
             if ($senha_valida) {
+                // Salvar na sessão
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['user_nome'] = $user['nome'];
                 $_SESSION['user_email'] = $user['email'];
                 $_SESSION['user_tipo'] = $user['tipo'];
                 $_SESSION['foto_perfil'] = $user['foto_perfil'] ?? '';
                 
+                // Buscar cuidador_id
                 if ($user['tipo'] == 'cuidador') {
                     $sql2 = "SELECT id FROM cuidadores WHERE usuario_id = ?";
                     $stmt2 = $conn->prepare($sql2);
@@ -59,6 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     }
                 }
                 
+                // Salvar no localStorage
                 echo "<script>
                     localStorage.setItem('userLoggedIn', 'true');
                     localStorage.setItem('userType', '" . addslashes($user['tipo']) . "');
@@ -66,6 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     localStorage.setItem('userId', '" . $user['id'] . "');
                 </script>";
                 
+                // Redirecionar
                 if ($user['tipo'] == 'cuidador') {
                     header('Location: painel-cuidador.php');
                 } else {
